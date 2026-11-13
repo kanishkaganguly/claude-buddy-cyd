@@ -406,5 +406,53 @@ class TestStreamTransports(unittest.TestCase):
         self.assertEqual(self.dev.got, [])
 
 
+class TestRestart(unittest.TestCase):
+    """The port is the single-instance lock. A bridge started right after
+    `stop` must still come up: on Linux the old bridge's closed connections
+    sit in TIME_WAIT on that port for ~60 s, which blocks a bind made without
+    SO_REUSEADDR (the next spawn then exited silently)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        p = mock.patch.object(bb, "CFG", os.path.join(self.tmp, "buddy.json"))
+        p.start()
+        self.addCleanup(p.stop)
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        self.port = s.getsockname()[1]
+        s.close()
+
+    def _start(self):
+        t = threading.Thread(target=bb.main, daemon=True, args=(
+            ["--no-ble", "--port", str(self.port), "--idle-exit", "20"],))
+        t.start()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            try:
+                return t, bb._client(self.port, "GET", "/", timeout=1)[0]
+            except OSError:
+                time.sleep(0.05)
+        return t, None
+
+    @unittest.skipIf(os.name == "nt", "POSIX TIME_WAIT semantics")
+    def test_restart_right_after_stop(self):
+        first, status = self._start()
+        self.assertEqual(status, 200)
+        bb._client(self.port, "POST", "/quit", {}, timeout=2)
+        first.join(timeout=5)
+        self.assertFalse(first.is_alive())
+        second, status = self._start()
+        self.assertEqual(status, 200, "a bridge started after stop didn't bind")
+        # ...and while it runs, a third one still can't take the port
+        third = threading.Thread(target=bb.main, daemon=True, args=(
+            ["--no-ble", "--port", str(self.port), "--idle-exit", "20"],))
+        third.start()
+        third.join(timeout=3)
+        self.assertFalse(third.is_alive(), "two bridges shared the port")
+        bb._client(self.port, "POST", "/quit", {}, timeout=2)
+        second.join(timeout=5)
+
+
 if __name__ == "__main__":
     unittest.main()

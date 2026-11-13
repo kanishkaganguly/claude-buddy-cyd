@@ -894,9 +894,13 @@ def main(argv=None):
     if args.transport:
         cfg["transport"] = args.transport
     link = Link(cfg)
-    # The bind IS the single-instance lock: with SO_REUSEADDR off, a second
-    # bridge's bind fails and it exits silently (the hook spawns eagerly).
-    ThreadingHTTPServer.allow_reuse_address = False
+    # The bind IS the single-instance lock: a second bridge's bind fails and
+    # it exits silently (the hook spawns eagerly). On Windows SO_REUSEADDR
+    # would let two bridges share the port, so it stays off there. On POSIX
+    # it must be on: a second live listener is still refused, but without it
+    # the TIME_WAIT sockets of the last bridge's connections block every new
+    # bind for ~60 s, so a bridge started right after `stop` silently exits.
+    ThreadingHTTPServer.allow_reuse_address = os.name != "nt"
     try:
         httpd = ThreadingHTTPServer(
             (args.listen, args.port or int(cfg.get("port", 8787) or 8787)),
