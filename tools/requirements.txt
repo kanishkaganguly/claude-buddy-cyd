@@ -1,0 +1,4 @@
+# PC-side libraries for buddy_bridge.py (install.sh puts them in a private
+# venv at ~/.claude/buddy/venv). The hook itself is stdlib-only.
+pyserial==3.5   # USB link (and reading the token at setup)
+bleak==3.0.2    # Bluetooth LE link

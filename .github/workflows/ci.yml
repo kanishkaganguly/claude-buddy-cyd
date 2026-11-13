@@ -31,7 +31,7 @@ jobs:
         working-directory: tools
         run: |
           pip install pyserial pillow
-          python -m unittest -v test_buddy_hook test_buddy_bridge test_art_pack
+          python -m unittest -v test_buddy_hook test_buddy_bridge test_art_pack test_buddy_setup
 
       - name: Install PlatformIO
         run: pip install --upgrade platformio
