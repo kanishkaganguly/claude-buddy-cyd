@@ -88,8 +88,9 @@ static uint32_t askShownAt = 0;    // for the auto-dismiss timeout
 static uint32_t pressStart = 0;
 static bool longFired = false;
 
-#define SCREEN_OFF_MS 30000UL
-#define BUSY_OFF_MS 180000UL // while Claude works: longer leash, then sleep too
+#define SCREEN_OFF_MS 30000UL // Settings / Stats left open this long -> home
+// screen-off itself is the "Screen off" setting (app::kScreenOffMs)
+#define BUSY_OFF_MS 180000UL // while Claude works: at least this, then sleep too
 #define PRESLEEP_MS 8000UL // dim the backlight this long before the full cut-off
 #define AUTO_SLEEP_MS 3600000UL // dark + no events this long -> deep sleep
 
@@ -145,7 +146,7 @@ static void wakeScreen() {
 }
 
 static void handleSettingsTap(int x, int y) {
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < SET_BTN_N; i++) {
     if (!inRect(setBtns[i], x, y))
       continue;
     if (i == 0) { // power off -> deep sleep (tap screen / RST to wake)
@@ -177,11 +178,15 @@ static void handleSettingsTap(int x, int y) {
       storage.putInt("bright", ctx.brightPct);
       storage.putInt("adim", ctx.autoDim ? 1 : 0);
       renderSettings();
-    } else if (i == 4) { // recalibrate touch (shows visible targets)
+    } else if (i == 4) { // cycle the screen-off timeout (persisted)
+      ctx.screenOffIdx = (ctx.screenOffIdx + 1) % app::SCREEN_OFF_N;
+      storage.putInt("scrto", ctx.screenOffIdx);
+      renderSettings();
+    } else if (i == 5) { // recalibrate touch (shows visible targets)
       settingsOpen = false;
       touch.calibrate(display);
       forceRedraw = true;
-    } else { // close (i == 5)
+    } else { // close (i == 6)
       settingsOpen = false;
       forceRedraw = true;
     }
@@ -312,6 +317,9 @@ void setup() {
   ctx.dnd = storage.getInt("dnd", storage.getInt("quiet", 0) >= 1 ? 1 : 0) != 0;
   ctx.brightPct = storage.getInt("bright", 100);
   ctx.autoDim = storage.getInt("adim", 0) != 0;
+  ctx.screenOffIdx = storage.getInt("scrto", ctx.screenOffIdx);
+  if (ctx.screenOffIdx < 0 || ctx.screenOffIdx >= app::SCREEN_OFF_N)
+    ctx.screenOffIdx = 2;
   display.setBrightness(effectiveBright());
   display.backlight(true);
 
@@ -655,9 +663,18 @@ void loop() {
   //      shouldn't keep the backlight burning the battery. Fresh work, nudges
   //      and fx still wake the screen, so nothing important goes unseen. ----
   bool quiet = !timeBefore(now, dizzyUntil) && !timeBefore(now, fxUntil);
-  uint32_t offAfter = s.running > 0 ? BUSY_OFF_MS : SCREEN_OFF_MS;
-  uint32_t idleFor = now - lastInteraction;
-  if (screenOn && quiet && idleFor > offAfter) {
+  // "Screen off" setting (0 = never); a working session gets the longer of
+  // that and BUSY_OFF_MS. Claude's events count as activity as well as
+  // touches, so the screen stays up while you work with Claude and the
+  // countdown runs from whichever came last.
+  uint32_t offAfter = app::kScreenOffMs[ctx.screenOffIdx];
+  if (offAfter && s.running > 0 && offAfter < BUSY_OFF_MS)
+    offAfter = BUSY_OFF_MS;
+  uint32_t lastActive = lastInteraction;
+  if (lastEventMs && timeBefore(lastActive, lastEventMs))
+    lastActive = lastEventMs;
+  uint32_t idleFor = now - lastActive;
+  if (screenOn && quiet && offAfter && idleFor > offAfter) {
     screenOn = false;
     dimmed = false;
     setCard(0); // wake back up on the familiar stats page
@@ -673,7 +690,7 @@ void loop() {
   } else if (screenOn) {
     // pre-sleep fade: ease the backlight down in the last PRESLEEP_MS so the
     // cut-off isn't an abrupt blackout (also a subtle "about to sleep" cue).
-    bool wantDim = quiet && idleFor > (offAfter - PRESLEEP_MS);
+    bool wantDim = quiet && offAfter && idleFor > (offAfter - PRESLEEP_MS);
     if (wantDim && !dimmed) {
       dimmed = true;
       display.glideTo(20); // ease down instead of snapping

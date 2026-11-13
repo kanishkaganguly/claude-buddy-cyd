@@ -13,8 +13,10 @@ void renderSettings() {
   t.fillScreen(TFT_BLACK);
   ui::gtext("Settings", W / 2, 16, &FreeSansBold18pt7b, C_CORAL, TFT_BLACK,
             TC_DATUM);
-  char quiet[20], bri[20];
+  char quiet[20], bri[20], scr[24];
   snprintf(quiet, sizeof(quiet), "Quiet: %s", app::ctx.dnd ? "on" : "off");
+  snprintf(scr, sizeof(scr), "Screen off: %s",
+           app::kScreenOffLabel[app::ctx.screenOffIdx]);
   if (app::ctx.autoDim)
     snprintf(bri, sizeof(bri), "Brightness: auto");
   else
@@ -24,13 +26,13 @@ void renderSettings() {
   // Power off sits on top, in red -- it's the row reached for most, and the
   // color keeps it unmistakable (waking back up is a single tap, so a stray
   // hit costs nothing).
-  const char *labels[6] = {"Power off", "Stats", quiet, bri,
-                           "Recalibrate", "Close"};
-  for (int i = 0; i < 6; i++)
+  const char *labels[SET_BTN_N] = {"Power off", "Stats",       quiet, bri,
+                                   scr,         "Recalibrate", "Close"};
+  for (int i = 0; i < SET_BTN_N; i++)
     ui::drawButton(setBtns[i], labels[i],
                    i == 0 ? C_NO : (i == 2 && app::ctx.dnd) ? 0x7B40 : C_FACE);
   // Two info lines in the free band under the buttons (the last ends at
-  // y=268): where WiFi stands -- its address is what a bridge on another PC
+  // y=266): where WiFi stands -- its address is what a bridge on another PC
   // needs -- and the pairing secret for ~/.claude/buddy.json. Worst-case width
   // of "Token: " + 16 hex digits in FreeSans9pt is 220 px, so it never needs
   // clamping at 240 px.

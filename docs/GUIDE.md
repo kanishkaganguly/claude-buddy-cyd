@@ -324,13 +324,15 @@ merged); if two machines push at once, the device shows whichever pushed last.
   auto-waking for nudges; only your touch wakes it), **Brightness** (cycle the
   backlight 100 / 70 / 40 % / **auto** — auto night-dims to 25% when the onboard
   light sensor says the room went dark, and eases back up when the lights come
-  on), **Recalibrate** (3-point touch calibration; times out safely
+  on), **Screen off** (cycle 30 s / 2 min / **5 min** (default) / 15 min /
+  never — how long the screen stays lit after the last touch or Claude event),
+  **Recalibrate** (3-point touch calibration; times out safely
   if you walk away), **Close**. Below the buttons: the WiFi state/address and
-  the pairing token. Quiet and brightness persist across reboots.
-- Auto **screen-off after 30 s** of calm — or **3 min while Claude is working**,
-  so long grinds go dark too; a touch, a fresh turn starting, or a nudge wakes
-  it. After **an hour** with no touch and no Claude activity at all the device
-  deep-sleeps itself (tap to wake).
+  the pairing token. Quiet, brightness and screen-off persist across reboots.
+- Auto **screen-off** after the **Screen off** time with no touch and no Claude
+  event (at least **3 min** while Claude is working); a touch, a fresh turn
+  starting, or a nudge wakes it. After **an hour** with no touch and no Claude
+  activity at all the device deep-sleeps itself (tap to wake).
 
 ## How usage is counted
 
@@ -356,10 +358,11 @@ merged); if two machines push at once, the device shows whichever pushed last.
 
 Ordered by how much they save (all automatic):
 
-- **Auto screen-off.** The backlight is by far the largest draw. 30 s idle when
-  calm; **3 min while Claude is working** (so a marathon turn goes dark instead
-  of burning the backlight for an hour — LED events and any fresh turn still
-  relight it). While off, the CPU drops 240 → **80 MHz** and the idle loop
+- **Auto screen-off.** The backlight is by far the largest draw. It goes dark
+  after the **Screen off** setting (default 5 min; pick **30 s** on battery)
+  with no touch and no Claude event, and never sooner than 3 min while Claude
+  is working; **never** keeps it lit until you power off. Nudges and any fresh
+  turn relight a dark screen. While off, the CPU drops 240 → **80 MHz** and the idle loop
   throttles to ~25 Hz; both jump back on wake.
 - **Auto deep sleep.** After **1 hour** with no touch *and* no hook events the
   device powers itself fully off — radios off and the display controller put
