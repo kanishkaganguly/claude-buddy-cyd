@@ -85,33 +85,27 @@ All **29 animations**, as shown on the device. Click a preview to open the GIF.
 
 ## Quick start
 
-You need an **ESP32-2432S028R (CYD)**, a USB cable, **Python 3**, and
-[PlatformIO](https://platformio.org/). The reference board uses an **ILI9341** display.
-
-**1. Clone and flash** both firmware and animations:
+You need an **ESP32-2432S028R (CYD)**, a USB data cable, **Linux** with
+**Python 3**, and **Chrome or Edge**. No PlatformIO: the firmware ships prebuilt.
+The reference board uses an **ILI9341** display.
 
 ```bash
 git clone https://github.com/wangkant/claude-buddy-cyd.git
 cd claude-buddy-cyd
-pio run -e cyd -t upload
-pio run -e cyd -t uploadfs
-python -m pip install pyserial bleak
+./install.sh
 ```
 
-**2. Configure the device token.** Long-press the screen → **Settings**, then
-copy the token into `~/.claude/buddy.json`:
+The installer opens the [web flasher](web/index.html) in Chrome (click
+**Connect**, then **Install**). Then it reads the device token over USB, puts
+the bridge and its Python libraries in `~/.claude/buddy/`, writes
+`~/.claude/buddy.json`, and registers the
+[Claude Code hooks](tools/HOOKS.md#2-hooks-claudesettingsjson) in
+`~/.claude/settings.json` (backed up first). Start a Claude Code session and
+Clawd wakes up.
 
-```json
-{ "token": "<device token>" }
-```
-
-**3. Register the [Claude Code hooks](tools/HOOKS.md#2-hooks-claudesettingsjson)**
-in `~/.claude/settings.json`, using the absolute path to `tools/buddy_hook.py`.
-Start a Claude Code session and Clawd wakes up.
-
-USB and BLE work immediately; [WiFi is opt-in](docs/GUIDE.md#connections-usb-ble-wifi).
-The bridge tries **USB → BLE → WiFi**. If flashing reports a busy port, run
-`python tools/buddy_bridge.py stop` first.
+USB and BLE work immediately; [WiFi is opt-in](docs/GUIDE.md#connections-usb-ble-wifi)
+(the installer offers it). The bridge tries **USB → BLE → WiFi**. Re-flash with
+`./install.sh flash`; remove everything with `./install.sh uninstall`.
 
 ## Using your buddy
 

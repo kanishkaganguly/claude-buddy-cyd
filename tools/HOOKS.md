@@ -11,6 +11,9 @@ lets you **approve a tool call by tapping the device** instead of the
 terminal; it always fails open, so the session is never stuck if the device
 is off.
 
+> On Linux, `./install.sh` (repo root) writes `buddy.json` and these hooks for
+> you; this page is the manual reference.
+
 ## 1. Config (device secret; NOT committed)
 
 `~/.claude/buddy.json`:

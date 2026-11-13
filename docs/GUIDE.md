@@ -2,7 +2,7 @@
 
 [Back to the project](../README.md)
 
-- [Setup](#build--flash) · [Connections](#connections-usb-ble-wifi) · [Another computer](#use-it-from-another-computer)
+- [Setup](#flash--build) · [Connections](#connections-usb-ble-wifi) · [Another computer](#use-it-from-another-computer)
 - [Display & states](#what-it-shows) · [Controls](#on-device-controls) · [Usage counting](#how-usage-is-counted)
 - [Hardware](#hardware) · [Battery & power](#power-wired-or-battery) · [Other boards](#adapting-to-other-boards)
 - [Troubleshooting](#troubleshooting) · [Development](#development) · [Architecture](#how-it-works)
@@ -211,31 +211,41 @@ to review), or drop in your own character — any size; the renderer fits it to
 its 190×140 box. `tools/test_art_pack.py` checks that every state the firmware
 and hook use has clips.
 
-## Build & flash
+## Flash & build
 
-You need [PlatformIO](https://platformio.org/) (the `pio` CLI, or the VS Code
-extension) and a USB cable to the board.
+**Flash in the browser** (no toolchain). The prebuilt firmware and Clawd pack
+live in `web/firmware/`, and `web/index.html` flashes them with
+[ESP Web Tools](https://esphome.github.io/esp-web-tools/) over Web Serial, so
+you need Chrome or Edge (Firefox has no Web Serial). Web Serial only works on
+`localhost` or `https://`, so serve the page rather than opening the file:
 
 ```bash
-pio run -e cyd -t upload      # 1) firmware  -> app partition
-pio run -e cyd -t uploadfs    # 2) GIF pack  -> LittleFS (data/clawd/)
+./install.sh flash    # stops a running bridge, serves the page, opens Chrome
 ```
 
-Run both the first time (firmware *and* the filesystem image). After that,
-re-flash only what changed — `upload` for code, `uploadfs` for new/edited GIFs.
-If a bridge is holding the USB port, `python tools/buddy_bridge.py stop` frees
-it first.
+Click **Connect**, pick the board's USB Serial port, choose **Install**. It
+writes five images: the bootloader (0x1000), the partition table (0x8000),
+`boot_app0` (0xE000), the firmware (0x10000) and the Clawd pack (LittleFS,
+0x2B0000). That's the same map as PlatformIO's `upload` + `uploadfs`.
 
-> **Upgrading an older build:** the partition layout keeps **nvs and LittleFS
-> at their exact offsets**, so an `upload` keeps the token, touch + battery
-> calibration and stats history. Run `uploadfs` too whenever `data/clawd/`
-> changed — e.g. the redrawn character pack (new clip names: the new firmware
-> won't find the old files). Updates are USB-only — there's no over-the-air
-> flash.
+> **Upgrading an older build:** leave **Erase device** unchecked. The images
+> skip the nvs region and the partition layout keeps **nvs and LittleFS at
+> their exact offsets**, so an update keeps the token, touch + battery
+> calibration and stats history. Updates are USB-only — there's no
+> over-the-air flash.
+
+**Building from source.** After changing `src/` or `data/clawd/`, rebuild the
+images with `tools/build_firmware.sh`. It runs a pinned PlatformIO from a
+throwaway venv, keeps its toolchain inside the gitignored `.pio/`, and
+refreshes `web/firmware/` + `web/manifest.json` (commit both). For day-to-day
+firmware work PlatformIO works directly too (`pio run -e cyd -t upload`, then
+`-t uploadfs`). If a bridge is holding the USB port,
+`python3 tools/buddy_bridge.py stop` frees it first.
 
 The display driver is a build flag (`ILI9341_2_DRIVER` in `platformio.ini`); on a
 different panel that shows a white or garbled image, switch to your controller's
-driver/colour-order flags (e.g. `ST7789_DRIVER` + `TFT_RGB_ORDER=TFT_BGR`).
+driver/colour-order flags (e.g. `ST7789_DRIVER` + `TFT_RGB_ORDER=TFT_BGR`) and
+rebuild.
 
 > **First build on a slow/blocked network.** The initial espressif32 toolchain +
 > framework download can stall. If it does, fetch those archives out-of-band
@@ -244,14 +254,21 @@ driver/colour-order flags (e.g. `ST7789_DRIVER` + `TFT_RGB_ORDER=TFT_BGR`).
 
 ## First-time setup
 
-1. **Flash** firmware + filesystem (above). The device boots straight to the
+On Linux, `./install.sh` does all of this (re-runnable; `./install.sh
+uninstall` undoes it). It keeps a private Python env with pyserial and bleak
+plus copies of the hook and bridge in `~/.claude/buddy/`, so it doesn't depend
+on the checkout or on your system Python. By hand:
+
+1. **Flash** firmware + Clawd pack (above). The device boots straight to the
    dashboard, listening on USB and advertising over BLE — nothing to provision.
 2. **Read its token:** long-press → **Settings** — it's the bottom line. (It's
-   also printed on the serial console at boot as `[hub] token=…`, e.g. in
-   `pio device monitor`.) The token is a random secret generated on the device.
-3. **Install Python 3** (on `PATH`) plus the library for your link:
-   `python -m pip install pyserial` for USB, `python -m pip install bleak` for
-   BLE (both is fine; WiFi needs neither).
+   also printed on the serial console at boot as `[hub] token=…`;
+   `tools/buddy_setup.py token` resets the board and reads it.) The token is a
+   random secret generated on the device.
+3. **Install Python 3** plus the library for your link: `pyserial` for USB,
+   `bleak` for BLE (both is fine; WiFi needs neither). Versions are pinned in
+   `tools/requirements.txt`. Where the system Python refuses `pip install`
+   (Debian/Ubuntu), use a venv and point the hook commands at its `python`.
 4. **Tell your PC the secret** — `~/.claude/buddy.json`:
    ```json
    { "token": "<device token>" }
@@ -400,7 +417,7 @@ cold-boots straight back into the dashboard.
 ## Development
 
 ```bash
-cd tools && python -m unittest -v test_buddy_hook test_buddy_bridge test_art_pack
+cd tools && python -m unittest -v test_buddy_hook test_buddy_bridge test_art_pack test_buddy_setup
 ```
 
 The Python tests need no hardware: the hook's rollup runs on temp files, the
@@ -420,8 +437,12 @@ src/            firmware: main.cpp (orchestrator), net/ (envelope hub + the
                 ask), hal/ (display, touch, led, storage), render/ (Clawd GIF)
 data/clawd/     Clawd GIF character pack (flashed as the LittleFS image)
 assets/         project cover and README preview GIFs
+web/            browser flasher: index.html, manifest.json, firmware/ (the
+                prebuilt images, from tools/build_firmware.sh)
+install.sh      one-command Linux setup (flash, token, buddy.json, hooks)
 tools/          buddy_hook.py + buddy_bridge.py (PC side), their tests, and
-                HOOKS.md (hook setup); art/clawd_gen.py draws the GIF pack
+                HOOKS.md (hook setup); buddy_setup.py (installer helper);
+                build_firmware.sh; art/clawd_gen.py draws the GIF pack
 docs/           user guide and design notes
 .github/        CI: Python tests + firmware build
 platformio.ini  build configuration (partitions.csv: flash layout)
