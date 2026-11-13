@@ -40,7 +40,10 @@ cp "$PLATFORMIO_CORE_DIR/packages/framework-arduinoespressif32/tools/partitions/
 # FLASH_EXTRA_IMAGES, the LittleFS image at its partitions.csv offset).
 # Separate images on purpose: a merged one would fill the gaps with 0xFF and
 # wipe NVS (0x9000), i.e. the token, calibration and stats, on every update.
-VERSION="$(git -C "$REPO" describe --always --dirty --tags)"
+# Stamp the source the images came from: the last commit outside web/ (the
+# images themselves live there), "-dirty" if anything outside web/ is edited.
+VERSION="$(git -C "$REPO" log -1 --format=%h -- . ':!web')"
+git -C "$REPO" diff --quiet HEAD -- . ':!web' || VERSION="$VERSION-dirty"
 python3 - "$REPO" "$VERSION" <<'EOF'
 import csv, json, os, sys
 
