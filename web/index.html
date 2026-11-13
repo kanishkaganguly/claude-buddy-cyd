@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CYD Buddy Flasher</title>
+  <meta name="description" content="Flash the CYD Claude Buddy firmware and Clawd animations from the browser.">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-button.js?module"></script>
+  <style>
+    :root {
+      --bg: #fbf8f2;
+      --panel: #ffffff;
+      --ink: #1f1d1a;
+      --muted: #6b655c;
+      --line: #e6dfd3;
+      --accent: #d97757;
+      --accent-ink: #ffffff;
+      --warn-bg: #fff4d6;
+      --warn-ink: #6b4e00;
+      --code-bg: #f2ede4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171614;
+        --panel: #211f1c;
+        --ink: #eeeae3;
+        --muted: #a39d93;
+        --line: #36322d;
+        --accent: #e0896b;
+        --accent-ink: #1a0f0a;
+        --warn-bg: #3a3017;
+        --warn-ink: #f3dc9a;
+        --code-bg: #2b2925;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+    .cover { width: 100%; height: auto; border-radius: 12px; display: block; }
+    h1 { font-size: 1.7rem; line-height: 1.2; margin: 24px 0 4px; }
+    h2 { font-size: 1.1rem; margin: 32px 0 8px; }
+    .sub { color: var(--muted); margin: 0; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    ol { padding-left: 1.3em; margin: 0; }
+    ol li { margin: 0 0 10px; }
+    ol li:last-child { margin-bottom: 0; }
+    .install { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
+    esp-web-install-button {
+      --esp-tools-button-color: var(--accent);
+      --esp-tools-button-text-color: var(--accent-ink);
+      --esp-tools-button-border-radius: 8px;
+    }
+    .version { color: var(--muted); font-size: 0.9rem; }
+    .note {
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 16px;
+    }
+    .note p { margin: 0; }
+    code {
+      font: 0.9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .clips { display: flex; gap: 8px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+    .clips img { width: 120px; height: auto; image-rendering: pixelated; border-radius: 8px; }
+    ul.help { padding-left: 1.2em; margin: 0; }
+    ul.help li { margin-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    .scroll { overflow-x: auto; }
+    .blocked { color: var(--warn-ink); background: var(--warn-bg); border-radius: 8px; padding: 12px 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <img class="cover" src="../assets/project-cover.png" alt="CYD Claude Buddy: a yellow ESP32 display showing the orange Clawd mascot" width="1672" height="941">
+
+  <h1>Flash your CYD Claude Buddy</h1>
+  <p class="sub">Firmware and the Clawd animations, written straight from this page over USB. Nothing to install.</p>
+
+  <section class="card">
+    <ol>
+      <li>Plug the <strong>ESP32-2432S028R (CYD)</strong> into this computer with a USB <em>data</em> cable.</li>
+      <li>Click <strong>Connect</strong>, pick the <strong>USB Serial</strong> port (the board's CH340 chip), then choose
+        <strong>Install CYD Claude Buddy</strong> and confirm.</li>
+      <li>Wait for <strong>Installation complete</strong> (a minute or two), then close the dialog so the USB port is free again.</li>
+      <li>If you came here from <code>./install.sh</code>, go back to the terminal and press <strong>Enter</strong>.</li>
+    </ol>
+
+    <div class="install">
+      <esp-web-install-button manifest="manifest.json">
+        <div slot="unsupported" class="blocked">
+          This browser can't talk to USB devices. Open this page in <strong>Chrome</strong> or <strong>Edge</strong>
+          on a desktop computer (Firefox and Safari have no Web Serial).
+        </div>
+        <div slot="not-allowed" class="blocked">
+          Web Serial only works on a secure page. Open it from <code>http://localhost</code>
+          (that's what <code>./install.sh</code> does) or over <code>https://</code>.
+        </div>
+      </esp-web-install-button>
+      <span class="version" id="version"></span>
+    </div>
+
+    <div class="note">
+      <p><strong>Updating a buddy you already set up?</strong> Leave <strong>Erase device</strong> unchecked.
+        That keeps its pairing token, touch calibration and usage history, so nothing on your computer needs to change.</p>
+    </div>
+  </section>
+
+  <div class="clips" aria-hidden="true">
+    <img src="../data/clawd/heart.gif" alt="" width="190" height="140">
+    <img src="../data/clawd/typing.gif" alt="" width="190" height="140">
+    <img src="../data/clawd/celebrate.gif" alt="" width="190" height="140">
+  </div>
+
+  <h2>If it doesn't work</h2>
+  <ul class="help">
+    <li><strong>No port in the list:</strong> try another cable (many are charge-only). On Linux your user must be in
+      the <code>dialout</code> group. A running buddy bridge holds the port; <code>./install.sh flash</code> stops it first.</li>
+    <li><strong>Stuck on "Connecting" or "Preparing installation":</strong> hold the board's <strong>BOOT</strong>
+      button, start again, and let go once writing starts.</li>
+    <li><strong>White or garbled screen after flashing:</strong> your panel isn't the ILI9341 this build targets;
+      see <em>Building from source</em> in the user guide.</li>
+  </ul>
+
+  <h2>What gets written</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Image</th><th>Flash address</th><th>Contents</th></tr></thead>
+      <tbody id="parts">
+        <tr><td colspan="3">Loading manifest...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<script>
+  const ABOUT = {
+    "bootloader.bin": "ESP32 second-stage bootloader",
+    "partitions.bin": "partition table (partitions.csv)",
+    "boot_app0.bin": "boot selector (unused by this layout, written for parity with PlatformIO)",
+    "firmware.bin": "the buddy firmware",
+    "littlefs.bin": "Clawd animation pack (data/clawd/)",
+  };
+  fetch("manifest.json")
+    .then((r) => r.json())
+    .then((m) => {
+      document.getElementById("version").textContent = "Build " + m.version;
+      const rows = m.builds[0].parts.map((p) => {
+        const name = p.path.split("/").pop();
+        const tr = document.createElement("tr");
+        for (const text of [name, "0x" + p.offset.toString(16).toUpperCase(), ABOUT[name] || ""]) {
+          const td = document.createElement("td");
+          td.textContent = text;
+          tr.appendChild(td);
+        }
+        return tr;
+      });
+      document.getElementById("parts").replaceChildren(...rows);
+    })
+    .catch(() => {
+      document.getElementById("parts").innerHTML = "<tr><td colspan='3'>Couldn't load manifest.json.</td></tr>";
+    });
+</script>
+</body>
+</html>
