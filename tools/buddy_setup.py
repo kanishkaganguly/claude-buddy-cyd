@@ -189,8 +189,12 @@ def _save_settings(new):
         return None
     backup = None
     if os.path.exists(SETTINGS):
-        backup = "%s.bak-%s" % (SETTINGS, time.strftime("%Y%m%d-%H%M%S"))
-        with open(SETTINGS, "rb") as src, open(backup, "wb") as dst:
+        # never overwrite an earlier backup (two runs in the same second)
+        stem = "%s.bak-%s" % (SETTINGS, time.strftime("%Y%m%d-%H%M%S"))
+        backup, n = stem, 1
+        while os.path.exists(backup):
+            backup, n = "%s-%d" % (stem, n), n + 1
+        with open(SETTINGS, "rb") as src, open(backup, "xb") as dst:
             dst.write(src.read())
     _write_json(SETTINGS, new)
     return backup

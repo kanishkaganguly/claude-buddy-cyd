@@ -186,6 +186,18 @@ class TestSettingsFile(unittest.TestCase):
         with open(self.path) as f:
             self.assertEqual(json.load(f), TestHooks.OTHER)
 
+    def test_backups_in_the_same_second_dont_overwrite(self):
+        with open(self.path, "w") as f:
+            json.dump(TestHooks.OTHER, f)
+        with mock.patch.object(bs.time, "strftime", return_value="20260101-000000"):
+            self._run("hooks", "install", "--python", "/v/python",
+                      "--hook", "/h/buddy_hook.py")
+            self._run("hooks", "remove")
+        backups = sorted(n for n in os.listdir(self.tmp) if ".bak-" in n)
+        self.assertEqual(len(backups), 2)
+        with open(os.path.join(self.tmp, "settings.json.bak-20260101-000000")) as f:
+            self.assertEqual(json.load(f), TestHooks.OTHER)  # the original survives
+
     def test_unchanged_writes_no_backup(self):
         args = ("hooks", "install", "--python", "/v/python",
                 "--hook", "/h/buddy_hook.py")
