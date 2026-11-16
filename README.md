@@ -7,9 +7,15 @@
 A tiny desk companion for **Claude Code**, built on the **ESP32 Cheap Yellow Display**.
 Clawd acts out your coding activity, tracks usage, and nudges you when Claude needs you.
 
+> **About this fork:** it adds a browser flasher (no PlatformIO needed), a
+> one-command Linux installer, a configurable screen timeout, and Linux fixes
+> to [wangkant/claude-buddy-cyd](https://github.com/wangkant/claude-buddy-cyd).
+
 - **Live animations** for editing, running commands, reading, thinking, and more.
 - **Usage at a glance:** tokens, tool calls, turns, sessions, and daily trends.
 - **USB, Bluetooth LE, or WiFi**, with a bridge that starts and stops on demand.
+- **Flash from the browser, set up with one command:** no toolchain, no
+  hand-edited config files.
 
 [Animations](#clawd-in-action) · [Quick start](#quick-start) · [User guide](docs/GUIDE.md) · [Hook setup](tools/HOOKS.md)
 
@@ -90,7 +96,7 @@ You need an **ESP32-2432S028R (CYD)**, a USB data cable, **Linux** with
 The reference board uses an **ILI9341** display.
 
 ```bash
-git clone https://github.com/wangkant/claude-buddy-cyd.git
+git clone https://github.com/kanishkaganguly/claude-buddy-cyd.git
 cd claude-buddy-cyd
 ./install.sh
 ```
@@ -105,12 +111,22 @@ Clawd wakes up.
 
 USB and BLE work immediately; [WiFi is opt-in](docs/GUIDE.md#connections-usb-ble-wifi)
 (the installer offers it). The bridge tries **USB → BLE → WiFi**. Re-flash with
-`./install.sh flash`; remove everything with `./install.sh uninstall`.
+`./install.sh flash` (leave **Erase device** unchecked to keep your token and
+stats); remove everything with `./install.sh uninstall`.
+
+Not on Linux? The flasher works in Chrome or Edge anywhere: run
+`python3 -m http.server` in the repo, open <http://localhost:8000/web/>, then
+follow the [manual setup](docs/GUIDE.md#first-time-setup).
 
 ## Using your buddy
 
 Tap Clawd to say hello, swipe to switch between stats and trends, and long-press
-for settings. Tap **Got it** to dismiss an alert; triple-tap for a surprise.
+for settings (brightness, Quiet mode, and how long the screen stays on). Tap
+**Got it** to dismiss an alert; triple-tap for a surprise.
+
+If you turned on **on-device approval** during install, Claude's permission
+prompts also appear on the screen: tap **Allow** or **Deny**. No tap within
+about 26 s falls back to the normal terminal prompt.
 
 | More details | Guide |
 | --- | --- |
@@ -122,6 +138,9 @@ for settings. Tap **Got it** to dismiss an alert; triple-tap for a surprise.
 ## License & credits
 
 - **Code & tooling:** [MIT](LICENSE). © 2026 Qiankang (Kant) Wang.
+- **This fork:** browser flasher, installer, screen-off setting and Linux fixes
+  by [Kanishka Ganguly](https://github.com/kanishkaganguly), under the same MIT
+  license.
 - **Clawd:** Anthropic's character, © Anthropic, PBC. These sprites are drawn by
   `tools/art/clawd_gen.py`; earlier releases adapted art from
   [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk).
