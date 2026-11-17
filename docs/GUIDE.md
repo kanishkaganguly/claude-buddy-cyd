@@ -120,7 +120,15 @@ over four compact counts: **Tools** (tool calls), **Turns** (assistant turns),
 roll like an odometer when they change. **Swipe left** and the **Trends card**
 slides in: a bar per day for the last 14 days (today in coral, still growing
 live) with a 7-day total and daily average — the device keeps a 30-day history
-in flash, dated by the PC so it needs no clock of its own. **Swipe right** to
+in flash, dated by the PC so it needs no clock of its own. **Swipe left** again
+for the **System card**: CPU, GPU and RAM use of the PC running the bridge,
+each as its current percentage over a graph of the last ~2 minutes. The bridge
+samples every 2 s while it's running, i.e. while Claude is working (it reads
+`/proc` on Linux and `nvidia-smi` for NVIDIA GPUs, so GPU shows `n/a` without
+one; elsewhere CPU and RAM need `psutil`). The card says **live**, **paused**
+once the bridge has gone quiet, or **waiting** before the first sample; set
+`"system": false` in `buddy.json` to stop sampling. On a laptop, polling keeps
+the discrete GPU awake while the bridge runs. **Swipe right** to
 slide back; swiping past the end rubber-bands. A fuller, live-updating panel is
 under long-press → **Settings → Stats** (adds a rough cost estimate, project
 name, battery estimate, uptime, free heap, and which link is live).
@@ -275,7 +283,8 @@ on the checkout or on your system Python. By hand:
    ```
    Optional keys: `"transport"` (see [Connections](#connections-usb-ble-wifi)),
    `"port"` (move the bridge off `8787`), `"budget"` (the on-device daily token
-   gauge), `"device"` (the buddy's WiFi address), `"serial"` (a fixed COM port).
+   gauge), `"device"` (the buddy's WiFi address), `"serial"` (a fixed COM port),
+   `"system"` (`false` stops the System card's CPU/GPU/RAM samples).
 5. **Register the hooks** in `~/.claude/settings.json` so Claude Code drives the
    device. Full snippet + explanation: **[tools/HOOKS.md](../tools/HOOKS.md)**.
 
@@ -308,9 +317,9 @@ merged); if two machines push at once, the device shows whichever pushed last.
 
 - **Tap** while asleep — wake the screen.
 - **Tap Clawd** — pet the character: a brief `heart` hello.
-- **Swipe left / right** — slide the bottom card between **stats** (left page)
-  and **trends** (right page); swiping past the end rubber-bands. Returns to
-  stats when the screen next sleeps.
+- **Swipe left / right** — slide the bottom card between **stats** (left page),
+  **trends** and **system** (right page); swiping past the end rubber-bands.
+  Returns to stats when the screen next sleeps.
 - **Tap "Got it"** on the *Needs you* screen — dismiss the nudge: the device
   drops back to idle (LED off) until the next time Claude needs you.
 - **Triple-tap** — `dizzy` easter egg.

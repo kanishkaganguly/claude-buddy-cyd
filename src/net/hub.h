@@ -56,6 +56,15 @@ struct AppState {
   // of order, so we drop any event older than this -> a late PostToolUse can't
   // re-assert "running" after the Stop that already ended the turn.
   long long lastTs = 0;
+  // System card: CPU / GPU / RAM percent of the bridge's PC ("sys" envelopes,
+  // every ~2 s while a bridge is attached). Rings of the last SYS_N samples,
+  // the newest at sysHead - 1; 255 = not available (e.g. no NVIDIA GPU). Not
+  // Claude activity: they never bump actSeq, so they can't keep the screen up.
+  static constexpr int SYS_N = 64;
+  uint8_t sysCpu[SYS_N] = {}, sysGpu[SYS_N] = {}, sysRam[SYS_N] = {};
+  int sysHead = 0, sysCount = 0;
+  uint32_t sysSeq = 0;     // bumps per sample (the System card repaints)
+  uint32_t sysAt = 0;      // millis() of the newest sample
   bool dirty = true;       // renderer should repaint
 };
 

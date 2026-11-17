@@ -207,6 +207,71 @@ class TestWorkerSends(unittest.TestCase):
         self.assertEqual(len(SlowTransport.sent), 3)
 
 
+STAT_A = "cpu  100 0 50 800 50 0 0 0 0 0\ncpu0 1 2 3 4\n"
+STAT_B = "cpu  160 0 70 860 60 0 0 0 0 0\ncpu0 1 2 3 4\n"  # +80 busy / +150
+MEMINFO = ("MemTotal:       16000000 kB\nMemFree:         2000000 kB\n"
+           "MemAvailable:   12000000 kB\n")
+
+
+class TestSysParsers(unittest.TestCase):
+    def test_cpu_times(self):
+        self.assertEqual(bb.cpu_times(STAT_A), (150, 1000))
+        self.assertIsNone(bb.cpu_times("intr 1 2 3\n"))
+
+    def test_mem_used_pct(self):
+        self.assertEqual(bb.mem_used_pct(MEMINFO), 25)
+        self.assertIsNone(bb.mem_used_pct("MemTotal: 100 kB\n"))
+
+    def test_gpu_util_pct(self):
+        self.assertEqual(bb.gpu_util_pct("8\n"), 8)
+        self.assertEqual(bb.gpu_util_pct("37\n55\n"), 55)  # busiest GPU
+        self.assertIsNone(bb.gpu_util_pct("[N/A]\n"))
+        self.assertIsNone(bb.gpu_util_pct(""))
+
+
+class TestSysSampler(unittest.TestCase):
+    def setUp(self):
+        self.proc = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.proc, True)
+        self._write("stat", STAT_A)
+        self._write("meminfo", MEMINFO)
+
+    def _write(self, name, text):
+        with open(os.path.join(self.proc, name), "w") as f:
+            f.write(text)
+
+    def test_cpu_delta_ram_and_no_gpu(self):
+        s = bb.SysSampler(proc=self.proc, smi="")
+        self._write("stat", STAT_B)
+        self.assertEqual(s.sample(), {"c": 53, "g": -1, "r": 25})  # 80/150
+
+    def test_unreadable_proc_reads_minus_one(self):
+        s = bb.SysSampler(proc=os.path.join(self.proc, "missing"), smi="")
+        with mock.patch.object(bb.SysSampler, "_psutil", return_value=None):
+            self.assertEqual(s.sample(), {"c": -1, "g": -1, "r": -1})
+
+    @unittest.skipIf(os.name == "nt", "shell-script stand-in for nvidia-smi")
+    def test_gpu_from_nvidia_smi(self):
+        smi = os.path.join(self.proc, "nvidia-smi")
+        with open(smi, "w") as f:
+            f.write("#!/bin/sh\necho 37\necho 55\n")
+        os.chmod(smi, 0o755)
+        self.assertEqual(bb.SysSampler(proc=self.proc, smi=smi).sample()["g"], 55)
+
+    @unittest.skipIf(os.name == "nt", "shell-script stand-in for nvidia-smi")
+    def test_failing_nvidia_smi_gives_up(self):
+        smi = os.path.join(self.proc, "nvidia-smi")
+        with open(smi, "w") as f:
+            f.write("#!/bin/sh\necho '[N/A]'\n")
+        os.chmod(smi, 0o755)
+        s = bb.SysSampler(proc=self.proc, smi=smi)
+        for _ in range(3):
+            self.assertEqual(s.sample()["g"], -1)
+        with mock.patch("subprocess.run") as run:
+            s.sample()
+        run.assert_not_called()  # stopped spawning it after 3 failures
+
+
 class FakeDevice:
     """Speaks the firmware's stream protocol on a loopback TCP port: one
     envelope per line in, "@buddy {json}" lines out (with some debug noise
@@ -293,9 +358,9 @@ class TestStreamTransports(unittest.TestCase):
         self.dev = FakeDevice(decide="allow")
         self.addCleanup(self.dev.close)
 
-    def _start(self, cfg, order):
+    def _start(self, cfg, order, sampler=None):
         link = bb.Link(dict(cfg, token=FakeDevice.TOKEN))
-        link.worker = bb.Worker(link, order)
+        link.worker = bb.Worker(link, order, sampler=sampler)
         threading.Thread(target=lambda: asyncio.run(link.worker.run()),
                          daemon=True).start()
         bb.Handler.link = link
@@ -332,6 +397,24 @@ class TestStreamTransports(unittest.TestCase):
     def _usb(self):
         return self._start({"serial": "socket://127.0.0.1:%d" % self.dev.port},
                            ["usb"])
+
+    def test_usb_link_streams_sys_samples_alongside_events(self):
+        class Stub:
+            n = 0
+
+            def sample(self):
+                Stub.n += 1
+                return {"c": Stub.n, "g": -1, "r": 40}
+
+        with mock.patch.object(bb, "SYS_PERIOD_S", 0.1):
+            self._start({"serial": "socket://127.0.0.1:%d" % self.dev.port},
+                        ["usb"], sampler=Stub())
+            self._until(lambda: self.dev.kinds().count("sys") >= 3)
+            self.assertEqual(self._req("POST", "/event", {"running": 1})[0], 202)
+            self._until(lambda: "event" in self.dev.kinds())
+        sys_bodies = [d for k, d in self.dev.got if k == "sys"]
+        self.assertEqual(sys_bodies[0], {"c": 1, "g": -1, "r": 40})
+        self.assertEqual([d["c"] for d in sys_bodies[:3]], [1, 2, 3])
 
     def test_wifi_link_carries_events_and_asks(self):
         link = self._wifi()

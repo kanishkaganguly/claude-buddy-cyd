@@ -1,6 +1,7 @@
 #include "home.h"
 #include "layout.h"
 #include "trends.h"
+#include "system.h"
 #include "app/ctx.h"
 #include "app/activity.h"
 #include "app/battery.h"
@@ -21,10 +22,10 @@ static const int REG_Y = render::REG_Y, REG_H = render::REG_H; // single source
 static int verbIdx = 0;
 static int idleIdx = 0;
 
-// bottom-card page: 0 = stats, 1 = trends
+// bottom-card page: 0 = stats, 1 = trends, 2 = system
 static int g_card = 0;
 int card() { return g_card; }
-void setCard(int c) { g_card = (c != 0) ? 1 : 0; }
+void setCard(int c) { g_card = c < 0 ? 0 : c >= CARD_PAGES ? CARD_PAGES - 1 : c; }
 
 // Animated (eased) copies of the live counters, so a value rolls toward its new
 // total like an odometer instead of snapping.
@@ -265,6 +266,10 @@ void renderStatic(const char *st) {
     renderTrends(true);
     return;
   }
+  if (g_card == 2) { // system page
+    renderSystem(true);
+    return;
+  }
   drawStatsPage(t, 0, st, ui::PAL_RGB, true);
 }
 
@@ -299,6 +304,10 @@ void rollStats(uint32_t now, const char *st) {
     return;
   if (g_card == 1) { // trends page: keep today's bar growing instead
     renderTrends(false);
+    return;
+  }
+  if (g_card == 2) { // system page: scroll the graphs as samples arrive
+    renderSystem(false);
     return;
   }
   if (ch) {

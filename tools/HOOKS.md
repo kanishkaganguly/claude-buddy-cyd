@@ -32,6 +32,8 @@ Optional keys:
   otherwise its last reported address, then `claude-cyd.local`.
 - `"port"` — move the bridge off `127.0.0.1:8787`.
 - `"budget"` — daily token budget for the on-device gauge.
+- `"system"` — `false` stops the bridge sampling CPU / GPU / RAM for the
+  device's System card (on by default).
 - `"host"` — advanced: point the hook at a bridge on **another** machine,
   e.g. `"192.0.2.10:8787"` (see §4).
 

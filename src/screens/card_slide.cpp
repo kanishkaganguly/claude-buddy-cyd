@@ -1,6 +1,7 @@
 #include "card_slide.h"
 #include "home.h"
 #include "trends.h"
+#include "system.h"
 #include "render/character.h"
 #include "ui/text.h"
 #include "ui/theme.h"
@@ -19,8 +20,10 @@ static bool snapshotPage(TFT_eSprite &spr, int page, const char *st, int top) {
   spr.fillSprite(0); // index 0 = the black band around the rounded card
   if (page == 0)
     drawStatsPage(spr, top, st, ui::PAL_IDX, false);
-  else
+  else if (page == 1)
     drawTrendsPage(spr, top, ui::PAL_IDX);
+  else
+    drawSystemPage(spr, top, ui::PAL_IDX);
   return true;
 }
 
@@ -47,8 +50,10 @@ void slideCard(int target, const char *st) {
     nxt.deleteSprite();
     if (target == 0)
       drawStatsPage(t, 0, st, ui::PAL_RGB, true);
-    else
+    else if (target == 1)
       drawTrendsPage(t, 0, ui::PAL_RGB);
+    else
+      drawSystemPage(t, 0, ui::PAL_RGB);
     return;
   }
   int dir = target > from ? 1 : -1; // +1: the new page arrives from the right

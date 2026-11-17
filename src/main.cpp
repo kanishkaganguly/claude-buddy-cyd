@@ -602,7 +602,7 @@ void loop() {
     int dx = heldX - pressX, dy = heldY - pressY;
     if (abs(dx) >= SWIPE_MIN_DX && abs(dy) <= SWIPE_MAX_DY &&
         now - pressStart < SWIPE_MAX_MS) {
-      // pages sit side by side (0 stats, 1 trends): a leftward finger travels
+      // pages sit side by side (0 stats, 1 trends, 2 system): a leftward finger travels
       // to the page on the right; the wrong direction rubber-bands instead of
       // toggling (docs/card-slide-spec.md). The needs-you screen has no card,
       // so swipes are ignored there. No forceRedraw afterwards -- the slide's
@@ -612,7 +612,7 @@ void loop() {
           !strcmp(gst, "attention") || !strcmp(gst, "notification");
       if (!cardless) {
         int target = card() + (dx < 0 ? 1 : -1);
-        if (target >= 0 && target <= 1)
+        if (target >= 0 && target < CARD_PAGES)
           slideCard(target, gst);
         else
           bounceCard(dx > 0 ? 1 : -1, gst);

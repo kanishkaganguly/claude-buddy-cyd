@@ -8,10 +8,11 @@ namespace screens {
 // Home screen: top status bar + (character region) + bottom stats card. The
 // stats card's counters are animated (eased) copies of the live values, so a
 // number rolls toward its new total like an odometer instead of snapping.
-// The bottom card has two pages (swipe to switch): 0 = the stats card,
-// 1 = the trends card. Clawd and the top bar stay put on both.
+// The bottom card has three pages (swipe to switch): 0 = the stats card,
+// 1 = the trends card, 2 = the System card. Clawd and the top bar stay put.
 
-int card();          // current card page (0 stats / 1 trends)
+constexpr int CARD_PAGES = 3;
+int card();          // current card page (0 stats / 1 trends / 2 system)
 void setCard(int c); // switch page; the caller triggers the repaint
 
 // Full repaint of the home chrome (top bar + stats card / needs-you ack pill).

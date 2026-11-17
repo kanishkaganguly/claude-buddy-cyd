@@ -116,6 +116,25 @@ static void applyWifi(JsonVariant d, Src src) {
   }
 }
 
+// "sys" envelope: {"c":cpu,"g":gpu,"r":ram} percent from the bridge, -1 = n/a.
+// One slot per series in the System card's rings.
+static uint8_t sysPct(JsonVariant v) {
+  int p = v | -1;
+  return (p < 0 || p > 100) ? 255 : (uint8_t)p;
+}
+
+static void applySys(JsonVariant d, uint32_t now) {
+  AppState &s = g_state;
+  s.sysCpu[s.sysHead] = sysPct(d["c"]);
+  s.sysGpu[s.sysHead] = sysPct(d["g"]);
+  s.sysRam[s.sysHead] = sysPct(d["r"]);
+  s.sysHead = (s.sysHead + 1) % AppState::SYS_N;
+  if (s.sysCount < AppState::SYS_N)
+    s.sysCount++;
+  s.sysSeq++;
+  s.sysAt = now;
+}
+
 void Hub::setToken(const String &t) {
   g_token = t;
   g_state.token = t;
@@ -186,6 +205,8 @@ void Hub::loop() {
       applyEvent(env["d"]);
     } else if (!strcmp(kind, "ask")) {
       applyAsk(env["d"]);
+    } else if (!strcmp(kind, "sys")) {
+      applySys(env["d"], now);
     } else if (!strcmp(kind, "hello")) {
       if (from)
         sendInfo(from); // who we are + where WiFi stands

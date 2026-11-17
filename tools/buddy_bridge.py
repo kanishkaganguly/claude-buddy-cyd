@@ -543,16 +543,127 @@ TRANSPORT_CLASSES = {"usb": SerialTransport, "ble": BleTransport,
                      "wifi": TcpTransport}
 
 
+# ---- system usage (the device's System card) ---------------------------------
+SYS_PERIOD_S = 2.0  # one CPU / GPU / RAM sample this often while connected
+
+
+def cpu_times(stat_text):
+    """/proc/stat -> (busy, total) jiffies of the aggregate "cpu" line, or
+    None. Fields: user nice system idle iowait irq softirq steal (the guest
+    columns after them are already counted in user/nice)."""
+    for line in stat_text.splitlines():
+        if line.startswith("cpu "):
+            f = ([int(x) for x in line.split()[1:9]] + [0] * 8)[:8]
+            total = sum(f)
+            return total - f[3] - f[4], total
+    return None
+
+
+def mem_used_pct(meminfo_text):
+    """/proc/meminfo -> percent of RAM in use (MemTotal - MemAvailable)."""
+    kv = {}
+    for line in meminfo_text.splitlines():
+        name, _, rest = line.partition(":")
+        val = rest.split()[:1]
+        if val and val[0].isdigit():
+            kv[name] = int(val[0])
+    total, avail = kv.get("MemTotal"), kv.get("MemAvailable")
+    if not total or avail is None:
+        return None
+    return round(100 * (total - avail) / total)
+
+
+def gpu_util_pct(smi_text):
+    """`nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits`
+    -> the busiest GPU's percent, or None (no GPU line, "[N/A]")."""
+    vals = [int(v) for v in (ln.split(",")[0].strip()
+                             for ln in smi_text.splitlines()) if v.isdigit()]
+    return max(vals) if vals else None
+
+
+class SysSampler:
+    """CPU / GPU / RAM utilisation of this machine, as the "sys" envelope's
+    {"c","g","r"} percents (-1 = unavailable). Linux reads /proc; NVIDIA GPUs
+    come from nvidia-smi; elsewhere psutil covers CPU and RAM if installed.
+    Never raises: a reading that fails is just -1."""
+
+    def __init__(self, proc="/proc", smi=None):
+        import shutil
+        self.proc = proc
+        self.smi = shutil.which("nvidia-smi") if smi is None else smi
+        self._smi_fails = 0
+        self._prev = None
+        self._cpu()  # prime the CPU delta, so the first sample is real
+
+    def _read(self, name):
+        with open(os.path.join(self.proc, name), "r", encoding="ascii") as f:
+            return f.read()
+
+    @staticmethod
+    def _psutil():
+        try:
+            import psutil
+            return psutil
+        except ImportError:
+            return None
+
+    def _cpu(self):
+        try:
+            cur = cpu_times(self._read("stat"))
+        except OSError:
+            ps = self._psutil()
+            return round(ps.cpu_percent(interval=None)) if ps else None
+        prev, self._prev = self._prev, cur
+        if cur is None or prev is None or cur[1] <= prev[1]:
+            return None
+        return round(100 * (cur[0] - prev[0]) / (cur[1] - prev[1]))
+
+    def _ram(self):
+        try:
+            return mem_used_pct(self._read("meminfo"))
+        except OSError:
+            ps = self._psutil()
+            return round(ps.virtual_memory().percent) if ps else None
+
+    def _gpu(self):
+        if not self.smi or self._smi_fails >= 3:
+            return None  # no NVIDIA GPU (or nvidia-smi keeps failing): stop
+        import subprocess
+        try:
+            out = subprocess.run(
+                [self.smi, "--query-gpu=utilization.gpu",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=3).stdout
+        except (OSError, subprocess.SubprocessError):
+            out = ""
+        v = gpu_util_pct(out)
+        self._smi_fails = 0 if v is not None else self._smi_fails + 1
+        return v
+
+    def sample(self):
+        out = {}
+        for key, read in (("c", self._cpu), ("g", self._gpu), ("r", self._ram)):
+            try:
+                v = read()
+            except Exception:
+                v = None
+            out[key] = -1 if v is None else max(0, min(100, int(v)))
+        return out
+
+
 class Worker:
     """Owns the device side on its own asyncio loop: tries the configured
     transports in order, pumps events over the first that connects, and
     starts over when it drops. Budgeted: RETRY_S between attempts for
     SCAN_WINDOW_S after start/disconnect, then dormant (one attempt per
-    DORMANT_GAP_S, short BLE scans) while the device stays away."""
+    DORMANT_GAP_S, short BLE scans) while the device stays away. With a
+    sampler, it also sends a "sys" reading every SYS_PERIOD_S while
+    connected (the device's System card)."""
 
-    def __init__(self, link, order):
+    def __init__(self, link, order, sampler=None):
         self.link = link
         self.order = order
+        self.sampler = sampler
         self.transport = None
         self._send_lock = None  # asyncio.Lock, created on the worker's loop
 
@@ -584,6 +695,8 @@ class Worker:
         ev = link.slot.event
         closed = asyncio.ensure_future(t.wait_closed())
         last_tx = time.monotonic()
+        next_sys = time.monotonic()
+        loop = asyncio.get_running_loop()
         try:
             while not closed.done():
                 env = link.slot.take()
@@ -591,11 +704,21 @@ class Worker:
                     await self._send(t, env)
                     last_tx = time.monotonic()
                     continue
+                if self.sampler is not None and time.monotonic() >= next_sys:
+                    next_sys = time.monotonic() + SYS_PERIOD_S
+                    # off the loop: nvidia-smi takes tens of ms
+                    d = await loop.run_in_executor(None, self.sampler.sample)
+                    await self._send(t, make_envelope("sys", link.token, d))
+                    last_tx = time.monotonic()
+                    continue
                 if t.pings and time.monotonic() - last_tx >= PING_S:
                     await self._send(t, make_envelope("ping", link.token, {}))
                     last_tx = time.monotonic()
+                timeout = 2
+                if self.sampler is not None:
+                    timeout = min(timeout, max(0.05, next_sys - time.monotonic()))
                 try:
-                    await asyncio.wait_for(ev.wait(), timeout=2)
+                    await asyncio.wait_for(ev.wait(), timeout=timeout)
                 except asyncio.TimeoutError:
                     pass
                 ev.clear()
@@ -911,7 +1034,9 @@ def main(argv=None):
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
 
     if not args.no_ble:
-        worker = Worker(link, transport_order(cfg))
+        # "system": false in buddy.json turns off the System card's samples
+        sampler = SysSampler() if cfg.get("system", True) else None
+        worker = Worker(link, transport_order(cfg), sampler=sampler)
         link.worker = worker
         threading.Thread(target=lambda: asyncio.run(worker.run()),
                          daemon=True).start()

@@ -8,8 +8,9 @@ A tiny desk companion for **Claude Code**, built on the **ESP32 Cheap Yellow Dis
 Clawd acts out your coding activity, tracks usage, and nudges you when Claude needs you.
 
 > **About this fork:** it adds a browser flasher (no PlatformIO needed), a
-> one-command Linux installer, a configurable screen timeout, and Linux fixes
-> to [wangkant/claude-buddy-cyd](https://github.com/wangkant/claude-buddy-cyd).
+> one-command Linux installer, live CPU / GPU / RAM graphs, a configurable
+> screen timeout, and Linux fixes to
+> [wangkant/claude-buddy-cyd](https://github.com/wangkant/claude-buddy-cyd).
 
 - **Live animations** for editing, running commands, reading, thinking, and more.
 - **Usage at a glance:** tokens, tool calls, turns, sessions, and daily trends.
@@ -120,7 +121,8 @@ follow the [manual setup](docs/GUIDE.md#first-time-setup).
 
 ## Using your buddy
 
-Tap Clawd to say hello, swipe to switch between stats and trends, and long-press
+Tap Clawd to say hello, swipe between stats, trends and live CPU / GPU / RAM
+graphs of your PC while Claude works, and long-press
 for settings (brightness, Quiet mode, and how long the screen stays on). Tap
 **Got it** to dismiss an alert; triple-tap for a surprise.
 
@@ -138,9 +140,9 @@ about 26 s falls back to the normal terminal prompt.
 ## License & credits
 
 - **Code & tooling:** [MIT](LICENSE). © 2026 Qiankang (Kant) Wang.
-- **This fork:** browser flasher, installer, screen-off setting and Linux fixes
-  by [Kanishka Ganguly](https://github.com/kanishkaganguly), under the same MIT
-  license.
+- **This fork:** browser flasher, installer, System card, screen-off setting
+  and Linux fixes by [Kanishka Ganguly](https://github.com/kanishkaganguly),
+  under the same MIT license.
 - **Clawd:** Anthropic's character, © Anthropic, PBC. These sprites are drawn by
   `tools/art/clawd_gen.py`; earlier releases adapted art from
   [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk).
