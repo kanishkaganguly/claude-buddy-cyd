@@ -14,6 +14,7 @@ struct Ctx {
   bool autoDim = false;      // follow the onboard light sensor: night-dim when
                              // the room goes dark ("Brightness: auto")
   int screenOffIdx = 2;      // index into kScreenOffMs ("Screen off" setting)
+  bool bleOn = true;         // "BT" setting: advertise over Bluetooth LE
 };
 
 // Settings -> "Screen off": how long the screen stays lit after the last touch

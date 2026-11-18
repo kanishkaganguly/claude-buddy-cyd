@@ -149,19 +149,24 @@ static void handleSettingsTap(int x, int y) {
   for (int i = 0; i < SET_BTN_N; i++) {
     if (!inRect(setBtns[i], x, y))
       continue;
-    if (i == 0) { // power off -> deep sleep (tap screen / RST to wake)
+    if (i == SB_POWER) { // power off -> deep sleep (tap screen / RST to wake)
       powerOff(display, touch, led, storage); // does not return
-    } else if (i == 1) { // open the stats panel
+    } else if (i == SB_STATS) { // open the stats panel
       settingsOpen = false;
       statsOpen = true;
       renderStats(true);
-    } else if (i == 2) { // toggle Quiet / Do Not Disturb (persisted)
+    } else if (i == SB_QUIET) { // toggle Quiet / Do Not Disturb (persisted)
       ctx.dnd = !ctx.dnd;
       storage.putInt("dnd", ctx.dnd ? 1 : 0);
       if (ctx.dnd)
         led.off(); // apply the LED silence immediately
       renderSettings();
-    } else if (i == 3) { // cycle 100 -> 70 -> 40 -> auto (LDR night-dim)
+    } else if (i == SB_BT) { // toggle Bluetooth LE (persisted, applies at once)
+      ctx.bleOn = !ctx.bleOn;
+      storage.putInt("ble", ctx.bleOn ? 1 : 0);
+      bleLink.setEnabled(ctx.bleOn);
+      renderSettings();
+    } else if (i == SB_BRIGHT) { // cycle 100 -> 70 -> 40 -> auto (LDR night-dim)
       if (ctx.autoDim) {
         ctx.autoDim = false;
         ctx.brightPct = 100;
@@ -178,15 +183,15 @@ static void handleSettingsTap(int x, int y) {
       storage.putInt("bright", ctx.brightPct);
       storage.putInt("adim", ctx.autoDim ? 1 : 0);
       renderSettings();
-    } else if (i == 4) { // cycle the screen-off timeout (persisted)
+    } else if (i == SB_SCREEN) { // cycle the screen-off timeout (persisted)
       ctx.screenOffIdx = (ctx.screenOffIdx + 1) % app::SCREEN_OFF_N;
       storage.putInt("scrto", ctx.screenOffIdx);
       renderSettings();
-    } else if (i == 5) { // recalibrate touch (shows visible targets)
+    } else if (i == SB_RECAL) { // recalibrate touch (shows visible targets)
       settingsOpen = false;
       touch.calibrate(display);
       forceRedraw = true;
-    } else { // close (i == 6)
+    } else { // SB_CLOSE
       settingsOpen = false;
       forceRedraw = true;
     }
@@ -320,6 +325,8 @@ void setup() {
   ctx.screenOffIdx = storage.getInt("scrto", ctx.screenOffIdx);
   if (ctx.screenOffIdx < 0 || ctx.screenOffIdx >= app::SCREEN_OFF_N)
     ctx.screenOffIdx = 2;
+  ctx.bleOn = storage.getInt("ble", 1) != 0;
+  bleLink.setEnabled(ctx.bleOn); // before hub.begin(): off = NimBLE never starts
   display.setBrightness(effectiveBright());
   display.backlight(true);
 

@@ -11,10 +11,15 @@ class BleTransport : public Transport {
 public:
   Src src() const override { return SRC_BLE; }
   const char *name() const override { return "BLE"; }
-  void begin() override;              // init NimBLE, start advertising
+  void begin() override;              // init NimBLE + advertise (if enabled)
   void loop(uint32_t now) override {} // writes arrive via the NimBLE task
   bool up(uint32_t now) const override;
   void send(const char *json) override;
+  // The "BT" setting. Off: stop advertising and drop any connected host, so
+  // only USB (or WiFi) can reach the device; if it's off at boot, NimBLE is
+  // never even started. Callable before begin() (sets the boot state) or any
+  // time after (applies at once).
+  void setEnabled(bool on);
 };
 
 } // namespace net

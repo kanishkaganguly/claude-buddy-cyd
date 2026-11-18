@@ -9,9 +9,11 @@ namespace screens {
 // "Got it" pill on the needs-you screen.
 extern ui::Rect denyBtn, approveBtn;
 extern ui::Rect ackBtn; // "Got it" pill on the needs-you screen (dismisses -> idle)
-// Settings: Power off / Stats / Quiet / Brightness / Screen off / Recalibrate /
-// Close
-constexpr int SET_BTN_N = 7;
+// Settings buttons, top to bottom; Quiet and BT share a row as two halves.
+enum SetBtn {
+  SB_POWER, SB_STATS, SB_QUIET, SB_BT, SB_BRIGHT, SB_SCREEN, SB_RECAL,
+  SB_CLOSE, SET_BTN_N
+};
 extern ui::Rect setBtns[SET_BTN_N];
 
 void computeButtons(TFT_eSPI &t);

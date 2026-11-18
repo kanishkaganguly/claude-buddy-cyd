@@ -51,7 +51,10 @@ copy of it (see [setup](#first-time-setup)) — no pairing, no bonding.
 The bridge tries them in order **USB → BLE → WiFi** and uses the first that
 answers (it re-picks whenever the link drops). To pin or reorder, set
 `"transport"` in `~/.claude/buddy.json`: `"usb"`, `"ble"`, `"wifi"`, or a list
-such as `["usb", "wifi"]`. Check what it's using with:
+such as `["usb", "wifi"]`. To keep the buddy on its cable only, so a
+second PC in Bluetooth range can't pick it up, turn Bluetooth off on the
+device itself: long-press → **Settings → BT: off** (saved; applies at once).
+Check what it's using with:
 
 ```bash
 python tools/buddy_bridge.py status
@@ -330,14 +333,17 @@ merged); if two machines push at once, the device shows whichever pushed last.
   deep sleep: screen, LED and radios off; tap the screen or press the board's
   **RST** button to turn it back on), **Stats** (full live panel),
   **Quiet** (on/off Do Not Disturb — silences the RGB LED and stops the screen
-  auto-waking for nudges; only your touch wakes it), **Brightness** (cycle the
+  auto-waking for nudges; only your touch wakes it), **BT** (next to Quiet:
+  Bluetooth LE on/off — off stops advertising and drops a Bluetooth host, so
+  only USB or WiFi reach the buddy), **Brightness** (cycle the
   backlight 100 / 70 / 40 % / **auto** — auto night-dims to 25% when the onboard
   light sensor says the room went dark, and eases back up when the lights come
   on), **Screen off** (cycle 30 s / 2 min / **5 min** (default) / 15 min /
   never — how long the screen stays lit after the last touch or Claude event),
   **Recalibrate** (3-point touch calibration; times out safely
   if you walk away), **Close**. Below the buttons: the WiFi state/address and
-  the pairing token. Quiet, brightness and screen-off persist across reboots.
+  the pairing token. Quiet, BT, brightness and screen-off persist across
+  reboots.
 - Auto **screen-off** after the **Screen off** time with no touch and no Claude
   event (at least **3 min** while Claude is working); a touch, a fresh turn
   starting, or a nudge wakes it. After **an hour** with no touch and no Claude

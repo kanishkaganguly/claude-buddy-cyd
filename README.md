@@ -122,8 +122,8 @@ follow the [manual setup](docs/GUIDE.md#first-time-setup).
 ## Using your buddy
 
 Tap Clawd to say hello, swipe between stats, trends and live CPU / GPU / RAM
-graphs of your PC while Claude works, and long-press
-for settings (brightness, Quiet mode, and how long the screen stays on). Tap
+graphs of your PC while Claude works, and long-press for settings
+(brightness, Quiet mode, Bluetooth on/off, and how long the screen stays on). Tap
 **Got it** to dismiss an alert; triple-tap for a surprise.
 
 If you turned on **on-device approval** during install, Claude's permission
