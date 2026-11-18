@@ -1,6 +1,6 @@
 {
   "name": "CYD Claude Buddy",
-  "version": "32b1602",
+  "version": "cb1b958",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
   "builds": [
